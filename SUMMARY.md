@@ -34,7 +34,7 @@ the victim are on the same physical machine, seperated only by a hypervisor.
 
 Traditional approach to fixing the code above would look like this:
 ```c
-char check16_bad(unsigned char *a, unsigned char *b) {
+char check16_good(unsigned char *a, unsigned char *b) {
   unsigned i;
   char bad = FALSE;
   for (i = 0; i < 16; i++) {
