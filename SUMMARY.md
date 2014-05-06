@@ -6,8 +6,8 @@ cryptographic applications sensitive to timing attacks.  The premise of the
 language is that asking humans to write constant-time code is not really the
 best plan to achieve security.  There are many types of cryptographic attacks,
 and while some of them (protocol design flaws, defects in cipher design) are
-impossible to address on the instrumentation level, there is no reason why
-timing attacks are not one of them.
+impossible to address with a sufficiently advanced tool-chain, there is no
+reason why timing attacks are not one of them.
 
 Premise
 --------
@@ -25,8 +25,8 @@ char check16_bad(unsigned char *a, unsigned char *b) {
 ```
 
 The problem here is that attacker can send different invalid MACs, measure the
-time it takes for the function above to reject that and by figuring out the
-valid MAC byte-by-byte, reduce the time needed to brute-force the valid MAC from
+time it takes for the function above to reject, thereby figuring out the
+valid MAC byte-by-byte, reducing the time needed to brute-force the valid MAC from
 256^16 = 3.4e8 hashes to 16 * 256 = 4096; of course, this is an oversimplification,
 but timing attacks are real, and recent body of work has demonstrated that they
 are easier to exploit than it was thought before, especially if the attacker and
@@ -47,10 +47,10 @@ char check16_good(unsigned char *a, unsigned char *b) {
 
 There are several issues with this approach.  The first is that modern compilers
 are fairly clever and may optimize the code in unpredictable ways that may
-render a seemingly constant-time code not constant time.  The second issue is
+render a seemingly constant-time code not constant-time.  The second issue is
 that some code which seems constant-time may not necessarily be constant time;
 for example, the code may rely on integer division, which is not constant time
-on modern Intel CPUs and may depend on the size of the argument.  The third
+on modern Intel CPUs, and may depend on the size of the argument.  The third
 issue is that ensuring that code runs in the constant time manually is hard, and
 not reliable.
 
@@ -70,7 +70,7 @@ on any input at all).  The key principles here are the following:
 3. All loops are iterations over arrays or buffers of well-known size.
 4. All functions in the language are side-effect free.
 
-Note that first two restrictions above are too strict, which may lead to
+Note that first two restrictions above are too strict, and may lead to
 sub-optimal code performance.  In order to solve this issue, the language
 separates public and private data on the semantic level;  non-constant-time
 branches are allowed only if the compiler can prove using the information about
@@ -97,18 +97,18 @@ The language currently provides following data types:
 Most of those types are straightforward; note the notable omissions of
 floating-point types, which are not really something anyone should use in their
 cryptographic code.  Also note that the only container type in traditional sense
-here is buffer (and possibly array in future); this is caused by the fact that
+here is the buffer (and possibly array in future); this is caused by the fact that
 iteration over dynamically-sized data structures in constant time is
 problematic.
 
-Buffers are normally immutable.  Mutable buffers form a special type mbuffer,
-which is not passed into the functions as an argument, but only returned.  Such
-restricted model of buffers being passed around is motivated by the fact that
-functions have to be side-effect free, hence passing arguments by reference is
-out of question.  We assume that most cryptographic primitives can do well
-within this model.
+Buffers are normally immutable.  Mutable buffers form the special type
+mbuffer, which cannot be passed into the functions as an argument, it
+can only be returned.  This restricted model of buffer passing is
+motivated by the fact that functions have to be side-effect free;
+passing arguments by reference is out of question.  We assume that
+most cryptographic primitives can do well within this model.
 
-Working with buffers is not trivial, because of constant time primitive
+Working with buffers is not trivial, because of the constant-time primitive
 guarantee, and due to the fact that the memory access patterns have to be
 consistent regardless of data.  One of the operations one can do
 straightforwardly is to iterate over elements in the buffer:
@@ -130,17 +130,20 @@ straightforwardly is to iterate over elements in the buffer:
         return result;
     }
 
-bufferM can be iterated as uintN as long as N is a factor of M.  Larger sizes of
-buffer, like buffer128, are useful because, even though we do not provide data
-types like uint128, compiler can use that to optimize copying and manipulating
-those buffers using SSE.  Byte arrays are identical to buffers in how they are
-manipulated, except their type explicitly specifies the size of buffer.
-Regular arrays are fixed-size as well, but they can be only addressed using
-defined type; that type can be anything, except for mutable buffers.
+bufferM can be iterated as uintN as long as N is a factor of M.
+Larger sizes of buffer, like buffer128, are useful because, even
+though we do not provide data types like uint128, the compiler can use
+this information to optimize copying and manipulating those buffers
+using SSE.  Byte arrays are identical to buffers in how they are
+manipulated, except their type explicitly specifies their size.
+Regular arrays are fixed-size as well, but they can be only addressed
+using defined type; that type can be anything, except for mutable
+buffers.
 
 Note that because of that limitation, the language has to provide flexible
 iterator manipulation, similar to Python itertools:
 
+```c
     /**
      * Determine the size of padding in the buffer.
      */
@@ -158,9 +161,11 @@ iterator manipulation, similar to Python itertools:
 
         return result;
     }
+```
 
 Iterators can be used to iterate over two buffers at once using tuples:
 
+```c
     /**
      * Check if a MAC is bad -- contrived version; in real code, you would write
      * expected == provided, which would probably be optimized for buffer size.
@@ -174,9 +179,10 @@ Iterators can be used to iterate over two buffers at once using tuples:
 
         return true;
     }
+```
 
-There are of course, more non-trivial operations one would want to perform with
-buffers.  The most elementary of them is sorting.  Decor uses Batcher sorting
+There are, of course, more non-trivial operations one would want to perform with
+buffers.  The most elementary of them is sorting.  Decor uses a Batcher sorting
 network (which works in O(N log^2 N) time) in order to perform sorting with
 fixed memory access pattern and number of operations.  Sorting in constant time
 allows to perform arbitrary permutations, hence other useful operations (like
@@ -186,9 +192,10 @@ with zeroes") can be implemented in terms of it.
 Scoping
 -------
 
-Since all functions are free of side-effects, there are no global variables.
-All variables are local, and scoped to the block they are in.  Obstructing a
-variable in the outer scope is a syntax error.
+Since all functions are free of side-effects, there are no global
+variables.  All variables are local, and scoped to the block they are
+in.  Obstructing (shadowing) a variable in the outer scope is a syntax
+error.
 
 Private and public data
 -----------------------
@@ -216,8 +223,8 @@ like this:
     public mbytearray(32) sha256_hmac(public buffer8 data, private buffer8 key);
 
 Note an important issue here.  This prototype is consistent with how we use
-HMAC when we send message in encrypt-then-MAC scheme: we input a publicly
-accessible ciphertext with secret key, and the result is the MAC which is sent
+HMAC when we send a message in an encrypt-then-MAC scheme: we input a publicly
+accessible ciphertext and the secret key, and the result is the MAC which is sent
 on the wire.  In case of receiver, however, that assumption is not true: the
 output is the **MAC which the other party have to demonstrate knowledge of**, it
 is a secret MAC, and the only public data is the result of comparison of that
@@ -240,6 +247,7 @@ longer private, we can *export* it.
 
 For example, consider this code:
 
+```c
     public mbytearray(32) sha256_hmac(public buffer8 data, private buffer8 key) {
         mbytearray(32) result;
 
@@ -247,6 +255,7 @@ For example, consider this code:
 
         export(key) result;
     }
+```
 
 Note that we explicitly specify which private data we consider ourselves to be
 not leaking due to that invocation; this way, if we ever compute HMAC over
@@ -255,6 +264,7 @@ something secret, the result will not become public.
 Or let us revisit another example of function which needs such feature above and
 see how things can get complicated.
 
+```c
     public bool check_mac_match(private buffer8 expected, public buffer8 provided) {
         for (uint8 a, uint8 b : zip(expected, provided)) {
             if (a != b) {
@@ -264,6 +274,7 @@ see how things can get complicated.
 
         export(expected) true;
     }
+```
 
 In both cases, an export case is needed because the fact that the program
 reached that code path depends upon the private data (value of expected).  Note,
@@ -290,24 +301,25 @@ garbage.
 Integration into other programs
 -------------------------------
 
-Decor code is not meant to be ran standalone; it is intended to be compiled into
-an object file which is then linked to a C binary (which itself may then be
-exported into other languages).  The compiler produces two files: object file
-with compiled Decor routines and a header file with C code needed to call those
-functions.
+Decor code is not meant to be run standalone; it is intended to be
+compiled into an object file which is then linked to a C binary (which
+itself may then be exported into other languages).  The compiler
+produces two files: an object file with compiled Decor routines and a
+header file with C declarations needed to call those functions.
 
-The C code has a single function, which determines the capabilities of the CPU
-running on the system and returns a struct with pointers to all exposed
-functions.
+The C code provides a function which determines the capabilities of
+the CPU running on the system and returns a struct with pointers to
+all exposed functions.
 
-Whenever a variable length buffer is passed in, it is passed as (unsigned char \*).
-Output buffers are allocated with user-specified malloc by the decor code itself,
-byte arrays are to be allocated by the application and passed in as pointer to
-the fixed-size buffer where it is supposed to be sized.  It is up to application
-to:
+Whenever a variable length buffer is passed in, it is passed as
+(unsigned char \*) and a length.  Output buffers are allocated with
+user-specified malloc by the decor code itself, byte arrays are to be
+allocated by the application and passed in as pointer to the
+fixed-size buffer where it is supposed to be sized.  It is up to
+application to:
 1. Free the memory returned as a variable-length buffer.
 2. Ensure proper alignment of all input buffers and their size.
-3. Not screw up on buffer checking.
+3. Not screw up on bounds checking.
 
 (FIXME: it is possible that entrusting those tasks to C programmers is a bad
 idea, and the resulting code would be to memory leaks and heartbleeds)
