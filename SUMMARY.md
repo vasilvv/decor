@@ -6,7 +6,7 @@ cryptographic applications sensitive to timing attacks.  The premise of the
 language is that asking humans to write constant-time code is not really the
 best plan to achieve security.  There are many types of cryptographic attacks,
 and while some of them (protocol design flaws, defects in cipher design) are
-impossible to address on the intstrumentation level, there is no reason why
+impossible to address on the instrumentation level, there is no reason why
 timing attacks are not one of them.
 
 Premise
@@ -30,7 +30,7 @@ valid MAC byte-by-byte, reduce the time needed to brute-force the valid MAC from
 256^16 = 3.4e8 hashes to 16 * 256 = 4096; of course, this is an oversimplification,
 but timing attacks are real, and recent body of work has demonstrated that they
 are easier to exploit than it was thought before, especially if the attacker and
-the victim are on the same physical machine, seperated only by a hypervisor.
+the victim are on the same physical machine, separated only by a hypervisor.
 
 Traditional approach to fixing the code above would look like this:
 ```c
@@ -47,7 +47,7 @@ char check16_good(unsigned char *a, unsigned char *b) {
 
 There are several issues with this approach.  The first is that modern compilers
 are fairly clever and may optimize the code in unpredictable ways that may
-render a seeminly constant-time code not constant time.  The second issue is
+render a seemingly constant-time code not constant time.  The second issue is
 that some code which seems constant-time may not necessarily be constant time;
 for example, the code may rely on integer division, which is not constant time
 on modern Intel CPUs and may depend on the size of the argument.  The third
@@ -65,14 +65,14 @@ on any input at all).  The key principles here are the following:
    on Intel CPUs.
 2. The language exposes familiar control flow syntax to the programmer; however,
    the compiler transforms all branches into the code which evaluates both
-   codepaths and chooses the correct one afterwards, thus making code constant
+   code paths and chooses the correct one afterwards, thus making code constant
    time.
 3. All loops are iterations over arrays or buffers of well-known size.
 4. All functions in the language are side-effect free.
 
 Note that first two restrictions above are too strict, which may lead to
-suboptimal code performance.  In order to solve this issue, the language
-seperates public and private data on the semantic level;  non-constant-time
+sub-optimal code performance.  In order to solve this issue, the language
+separates public and private data on the semantic level;  non-constant-time
 branches are allowed only if the compiler can prove using the information about
 the data in the program that the information in question is derived solely from
 public data.
@@ -111,7 +111,7 @@ within this model.
 Working with buffers is not trivial, because of constant time primitive
 guarantee, and due to the fact that the memory access patterns have to be
 consistent regardless of data.  One of the operations one can do
-straighforwardly is to iterate over elements in the buffer:
+straightforwardly is to iterate over elements in the buffer:
 
     /**
      * Determine the number of leading zeroes in the buffer.
@@ -133,8 +133,8 @@ straighforwardly is to iterate over elements in the buffer:
 bufferM can be iterated as uintN as long as N is a factor of M.  Larger sizes of
 buffer, like buffer128, are useful because, even though we do not provide data
 types like uint128, compiler can use that to optimize copying and manipulating
-those buffers using SSE.  Bytearrays are identical to buffers in how they are
-maniupulated, except their type explicitly specifies the size of buffer.
+those buffers using SSE.  Byte arrays are identical to buffers in how they are
+manipulated, except their type explicitly specifies the size of buffer.
 Regular arrays are fixed-size as well, but they can be only addressed using
 defined type; that type can be anything, except for mutable buffers.
 
@@ -266,9 +266,9 @@ see how things can get complicated.
     }
 
 In both cases, an export case is needed because the fact that the program
-reached that codepath depends upon the private data (value of expected).  Note,
+reached that code path depends upon the private data (value of expected).  Note,
 however, that export of value false inside the loop *does not* mean that 
-this value is public in the context of determinig function's evaluation flow.
+this value is public in the context of determining function's evaluation flow.
 The data becomes public only as a result.
 
 (FIXME: does it make sense to make an export list a part of the prototype?)
@@ -302,7 +302,7 @@ functions.
 
 Whenever a variable length buffer is passed in, it is passed as (unsigned char \*).
 Output buffers are allocated with user-specified malloc by the decor code itself,
-bytearrays are to be allocated by the application and passed in as pointer to
+byte arrays are to be allocated by the application and passed in as pointer to
 the fixed-size buffer where it is supposed to be sized.  It is up to application
 to:
 1. Free the memory returned as a variable-length buffer.
