@@ -248,7 +248,7 @@ longer private, we can *export* it.
 For example, consider this code:
 
 ```c
-    public mbytearray(32) sha256_hmac(public buffer8 data, private buffer8 key) {
+    mbytearray(32) sha256_hmac(buffer8 data, private buffer8 key) {
         mbytearray(32) result;
 
         // Compute actual MAC here
@@ -261,11 +261,18 @@ Note that we explicitly specify which private data we consider ourselves to be
 not leaking due to that invocation; this way, if we ever compute HMAC over
 something secret, the result will not become public.
 
+In some cases, an argument of a function may be explicitly declared public;
+that means that any attempt to pass private data there will result in a
+compiler error.  Such explicit specification is useful because some data may be
+used by the function in a way that it has to be public (for example, it can be
+used as a buffer offset), and attempting to treat it as private would cause an
+error while attempting to compile that function.
+
 Or let us revisit another example of function which needs such feature above and
 see how things can get complicated.
 
 ```c
-    public bool check_mac_match(private buffer8 expected, public buffer8 provided) {
+    public bool check_mac_match(private buffer8 expected, buffer8 provided) {
         for (uint8 a, uint8 b : zip(expected, provided)) {
             if (a != b) {
                 export(expected) false;
